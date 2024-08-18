@@ -36,11 +36,19 @@ def check_script_status():
         is_running = check_script_status_single(script_name)
         current_status = 'Active' if is_running else 'Stopped'
 
-        # If the status has changed, update and emit the change
-        if data_sources.get(source, {}).get('status') != current_status:
-            data_sources[source]['status'] = current_status
-            # Emit the status update to all connected clients
-            socketio.emit('update', {'source': source, 'status': current_status, 'data': data_sources[source].get('data', {})})
+        # Check if the source already exists in data_sources, if not, initialize it
+        if source not in data_sources:
+            data_sources[source] = {
+                'data': {'temperature': 'N/A', 'pressure': 'N/A', 'humidity': 'N/A'},  # Default values
+                'last_update': None,
+                'status': current_status
+            }
+        else:
+            # If the status has changed, update and emit the change
+            if data_sources.get(source, {}).get('status') != current_status:
+                data_sources[source]['status'] = current_status
+                # Emit the status update to all connected clients
+                socketio.emit('update', {'source': source, 'status': current_status, 'data': data_sources[source].get('data', {})})
 
 def check_script_status_single(script_name):
     """Check if a single script is currently running."""
