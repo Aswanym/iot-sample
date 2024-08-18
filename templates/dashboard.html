@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperature Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- Plotly JS -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- SocketIO JS -->
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+    <!-- Custom Styles -->
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto; /* Ensures the page is scrollable */
+        }
+
+        .container {
+            padding-bottom: 50px; /* Add some padding at the bottom for better appearance */
+        }
+
+        .table-responsive {
+            margin-bottom: 30px; /* Space between the table and the chart */
+        }
+
+        #chart {
+            width: 100%;
+            height: 400px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="text-center my-4">Room Temperature Dashboard</h1>
+
+        <!-- Data Table -->
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Source</th>
+                        <th>Status</th>
+                        <th>Temperature</th>
+                        <th>Pressure</th>
+                        <th>Humidity</th>
+                    </tr>
+                </thead>
+                <tbody id="statusTable">
+                    {% for source, details in data_sources.items() %}
+                    <tr id="{{ source }}">
+                        <td>{{ source }}</td>
+                        <td>{{ details.status }}</td>
+                        <td>{{ details.data.temperature }}</td>
+                        <td>{{ details.data.pressure }}</td>
+                        <td>{{ details.data.humidity }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Plotly Chart -->
+        <div id="chart"></div>
+    </div>
+
+    <script>
+        var socket = io();
+
+        // Function to update the table and plot
+        function updateDashboard(data) {
+            var row = document.getElementById(data.source);
+            if (row) {
+                row.cells[1].innerText = data.status;
+                row.cells[2].innerText = data.data.temperature;
+                row.cells[3].innerText = data.data.pressure;
+                row.cells[4].innerText = data.data.humidity;
+            } else {
+                var table = document.getElementById('statusTable');
+                var newRow = table.insertRow();
+                newRow.id = data.source;
+                newRow.insertCell(0).innerText = data.source;
+                newRow.insertCell(1).innerText = data.status;
+                newRow.insertCell(2).innerText = data.data.temperature;
+                newRow.insertCell(3).innerText = data.data.pressure;
+                newRow.insertCell(4).innerText = data.data.humidity;
+            }
+
+            // Update Plotly chart
+            updateChart(data);
+        }
+
+        // Initial Plotly chart setup
+        var trace1 = {
+            x: [],
+            y: [],
+            mode: 'lines+markers',
+            name: 'Temperature (°C)'
+        };
+
+        var trace2 = {
+            x: [],
+            y: [],
+            mode: 'lines+markers',
+            name: 'Pressure (hPa)'
+        };
+
+        var trace3 = {
+            x: [],
+            y: [],
+            mode: 'lines+markers',
+            name: 'Humidity (%)'
+        };
+
+        var layout = {
+            title: 'Real-Time Sensor Data',
+            xaxis: { title: 'Time' },
+            yaxis: { title: 'Value' }
+        };
+
+        var data = [trace1, trace2, trace3];
+
+        Plotly.newPlot('chart', data, layout);
+
+        // Function to update the Plotly chart
+        function updateChart(data) {
+            var time = new Date().toLocaleTimeString();
+            Plotly.extendTraces('chart', {
+                x: [[time], [time], [time]],
+                y: [
+                    [data.data.temperature],
+                    [data.data.pressure],
+                    [data.data.humidity]
+                ]
+            }, [0, 1, 2], 100);
+        }
+
+        // Listen for updates from the server
+        socket.on('update', function(data) {
+            updateDashboard(data);
+        });
+    </script>
+</body>
+
+</html>
